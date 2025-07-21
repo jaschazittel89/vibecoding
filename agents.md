@@ -22,13 +22,13 @@ This document gives **OpenAI Codex** and other AI coding agents the context, co
 
 | Layer     | Tech / Service                           |
 | --------- | ---------------------------------------- |
-| Framework | Next.js 14 (App Router)                  |
+| Framework | Next.js 15 (App Router)                  |
 | Language  | TypeScript 5 (strict)                    |
 | Styling   | Tailwind CSS + CSS Modules               |
 | State     | React Context + Zustand (small‑scale)    |
 | Testing   | **Vitest** + **React Testing Library**   |
 | Linting   | ESLint (next/core‑web‑vitals) + Prettier |
-| Package   | pnpm (Node 20 LTS)                       |
+| Package   | pnpm (Node 18 LTS)                       |
 | CI        | GitHub Actions                           |
 | Hosting   | Vercel (Production + Preview)            |
 
