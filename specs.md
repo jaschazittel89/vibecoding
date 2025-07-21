@@ -24,12 +24,12 @@ Build a modern, responsive web application that allows users to snap or upload p
 ## User Stories & Acceptance Criteria
 
 ### 1 Sign‑Up
-* **US‑01** As a visitor I can create an account with email/password or Google so that my data is saved.
+* **US‑01** As a visitor I can create an account with email/password so that my data is saved.
   * **AC‑01.1** Invalid emails or weak passwords (< 8 chars, no number) trigger inline errors.
   * **AC‑01.2** Verification email sent within 30 s.
 
 ### 2 Log‑In
-* **US‑02** As a registered user I can log in with the credentials or provider I signed up with.
+* **US‑02** As a registered user I can log in with the credentials I signed up with.
   * **AC‑02.1** Rate‑limit 5 attempts / min / IP.
 
 ### 3 Capture or Upload Photos
