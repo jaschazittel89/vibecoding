@@ -1,5 +1,5 @@
 import { render, screen, fireEvent } from '@testing-library/react';
-import ImageUpload from '../src/components/ImageUpload';
+import ImageUpload from '@/components/ImageUpload';
 
 // simple smoke test
 it('renders input', () => {
