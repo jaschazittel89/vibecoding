@@ -3,12 +3,22 @@
 > **TL;DR** – Follow the steps in **Quick‑Start** below, pass **all checks**, keep changes **atomic**, and open a **Conventional Commit** PR.
 
 ---
+## 1 Mission
+You are an automated developer contributing to a modern, responsive web app:
+- Takes photos of the fridge and pantry
+- Analyses the photo using OpenAI's APIs for food items
+- Generates recipes based on food items
+- Stores the recipes
 
-## 1  Purpose
+Your output must integrate cleanly with the monorepo, compile and pass CI.
+
+Always refer to these specs: /Users/jaschazittel/vibecoding/specs.md
+
+## 2  Purpose
 
 This document gives **OpenAI Codex** and other AI coding agents the context, constraints, and commands they need to work effectively in this repository. It covers project setup, coding conventions, testing, CI/CD, and deployment to **Vercel** for a **Next.js (TypeScript)** stack.
 
-## 2  Project Stack
+## 3  Project Stack
 
 | Layer     | Tech / Service                           |
 | --------- | ---------------------------------------- |
@@ -24,7 +34,7 @@ This document gives **OpenAI Codex** and other AI coding agents the context, co
 
 ---
 
-## 3  Directory Convention
+## 4  Directory Convention
 
 ```
 /
@@ -47,7 +57,7 @@ This document gives **OpenAI Codex** and other AI coding agents the context, co
 
 ---
 
-## 4  Scripts
+## 5  Scripts
 
 Run via `pnpm <script>` (or `npm run <script>` if pnpm unavailable).
 
@@ -74,7 +84,7 @@ Failure to run these checks before opening a PR is considered a build‑breaker.
 
 ---
 
-## 5  Coding Guidelines
+## 6  Coding Guidelines
 
 1. **Type safety first** – prefer explicit types, use `unknown` over `any`, enable `strictNullChecks`.
 2. **Functional React** – all components are functional; hooks manage state.
@@ -86,7 +96,7 @@ Failure to run these checks before opening a PR is considered a build‑breaker.
 
 ---
 
-## 6  Testing Strategy
+## 7  Testing Strategy
 
 - **Unit & integration tests** live under `tests/` and use **Vitest**.
 - Mock server interactions with **msw**.
@@ -99,7 +109,7 @@ CI invokes `pnpm test:ci`. Coverage reports are published as artifacts.
 
 ---
 
-## 7  Environment Variables
+## 8  Environment Variables
 
 | Name                         | Purpose                                   |
 | ---------------------------- | ----------------------------------------- |
@@ -111,7 +121,7 @@ During local dev, variables are loaded from `.env.local` (never commit this file
 
 ---
 
-## 8  Vercel Deployment
+## 9  Vercel Deployment
 
 1. Every push to a branch triggers a **Preview Deployment**.
 2. Merging to `main` triggers **Production**.
@@ -120,7 +130,7 @@ During local dev, variables are loaded from `.env.local` (never commit this file
 
 ---
 
-## 9  How Codex Should Work in This Repo
+## 10  How Codex Should Work in This Repo
 
 1. **Understand the task** – summarise goals before making changes.
 2. **Plan** – list the files to create/update; reference directory structure above.
@@ -132,7 +142,7 @@ During local dev, variables are loaded from `.env.local` (never commit this file
 
 ---
 
-## 10  Quick‑Start for New Agents
+## 11  Quick‑Start for New Agents
 
 ```bash
 # 1. Install deps
@@ -146,6 +156,4 @@ pnpm lint && pnpm type-check && pnpm test
 ```
 
 ---
-
-*Have fun & ship it!* 🚀
 
