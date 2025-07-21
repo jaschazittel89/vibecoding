@@ -1,0 +1,14 @@
+{
+  "name": "vibecoding-monorepo",
+  "private": true,
+  "workspaces": [
+    "frontend"
+  ],
+  "scripts": {
+    "lint": "pnpm --filter frontend lint",
+    "type-check": "pnpm --filter frontend type-check",
+    "test:ci": "pnpm --filter frontend test:ci",
+    "build": "pnpm --filter frontend build",
+    "dev": "pnpm --filter frontend dev"
+  }
+}
