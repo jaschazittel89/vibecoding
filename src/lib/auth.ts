@@ -185,27 +185,39 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
 // Helper function to create a new user
 export async function createUser(email: string, password: string) {
+  console.log('createUser called with email:', email)
+  
   // Validate environment in production
   if (process.env.NODE_ENV === 'production') {
+    console.log('Validating environment variables...')
     validateEnv()
+    console.log('Environment validation passed')
   }
 
   // Sanitize and validate input
   const sanitizedEmail = sanitizeEmail(email)
+  console.log('Sanitized email:', sanitizedEmail)
   
   if (!validatePassword(password)) {
+    console.log('Password validation failed')
     throw new Error("Password must be at least 8 characters and contain uppercase, lowercase, and number")
   }
+  console.log('Password validation passed')
 
   try {
+    console.log('Checking if user already exists...')
     // Check if user already exists
     const existingUser = await getUser(sanitizedEmail)
     if (existingUser) {
+      console.log('User already exists:', sanitizedEmail)
       throw new Error("User already exists")
     }
+    console.log('User does not exist, proceeding with creation')
 
+    console.log('Hashing password...')
     // Hash password with appropriate salt rounds
     const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS)
+    console.log('Password hashed successfully')
 
     // Create new user
     const newUser: User = {
@@ -214,11 +226,19 @@ export async function createUser(email: string, password: string) {
       hashedPassword,
       createdAt: new Date().toISOString()
     }
+    console.log('User object created:', { id: newUser.id, email: newUser.email })
 
+    console.log('Saving user to database...')
     await saveUser(newUser)
+    console.log('User saved successfully')
+    
     return newUser
   } catch (error) {
-    console.error('Create user error:', error)
+    console.error('Create user error details:', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      name: error instanceof Error ? error.name : undefined
+    })
     throw error
   }
 } 
