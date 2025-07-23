@@ -45,8 +45,31 @@ const validatePassword = (password: string): boolean => {
          /[A-Z]/.test(password)
 }
 
-// KV client with error handling
+// Redis client with error handling
+let redisClient: any = null
 let kvClient: any = null
+
+const getRedisClient = async () => {
+  if (redisClient) return redisClient
+  
+  try {
+    if (process.env.REDIS_URL) {
+      const { createClient } = await import('redis')
+      redisClient = createClient({
+        url: process.env.REDIS_URL
+      })
+      
+      await redisClient.connect()
+      console.log('Connected to Redis Cache')
+      return redisClient
+    } else {
+      throw new Error("Redis URL not configured")
+    }
+  } catch (error) {
+    console.error('Redis connection error:', error)
+    throw new Error("Database connection failed. Please check your Redis configuration.")
+  }
+}
 
 const getKVClient = async () => {
   if (kvClient) return kvClient
@@ -65,12 +88,32 @@ const getKVClient = async () => {
   }
 }
 
-// Load user from KV storage
+// Get the appropriate database client
+const getDBClient = async () => {
+  // Try Redis first, then fallback to Vercel KV
+  try {
+    return await getRedisClient()
+  } catch (error) {
+    console.log('Redis not available, trying Vercel KV...')
+    return await getKVClient()
+  }
+}
+
+// Load user from database
 const getUser = async (email: string): Promise<User | null> => {
   try {
-    const kv = await getKVClient()
-    const userData = await kv.get(`user:${email}`)
-    return userData as User | null
+    const client = await getDBClient()
+    const key = `user:${email}`
+    
+    if (process.env.REDIS_URL) {
+      // Redis client
+      const userData = await client.get(key)
+      return userData ? JSON.parse(userData) : null
+    } else {
+      // Vercel KV client
+      const userData = await client.get(key)
+      return userData as User | null
+    }
   } catch (error) {
     console.error('Error loading user:', error)
     if (error instanceof Error && error.message.includes("Database connection failed")) {
@@ -80,11 +123,19 @@ const getUser = async (email: string): Promise<User | null> => {
   }
 }
 
-// Save user to KV storage
+// Save user to database
 const saveUser = async (user: User): Promise<void> => {
   try {
-    const kv = await getKVClient()
-    await kv.set(`user:${user.email}`, user)
+    const client = await getDBClient()
+    const key = `user:${user.email}`
+    
+    if (process.env.REDIS_URL) {
+      // Redis client
+      await client.set(key, JSON.stringify(user))
+    } else {
+      // Vercel KV client
+      await client.set(key, user)
+    }
   } catch (error) {
     console.error('Error saving user:', error)
     if (error instanceof Error && error.message.includes("Database connection failed")) {
@@ -185,39 +236,27 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
 // Helper function to create a new user
 export async function createUser(email: string, password: string) {
-  console.log('createUser called with email:', email)
-  
   // Validate environment in production
   if (process.env.NODE_ENV === 'production') {
-    console.log('Validating environment variables...')
     validateEnv()
-    console.log('Environment validation passed')
   }
 
   // Sanitize and validate input
   const sanitizedEmail = sanitizeEmail(email)
-  console.log('Sanitized email:', sanitizedEmail)
   
   if (!validatePassword(password)) {
-    console.log('Password validation failed')
     throw new Error("Password must be at least 8 characters and contain uppercase, lowercase, and number")
   }
-  console.log('Password validation passed')
 
   try {
-    console.log('Checking if user already exists...')
     // Check if user already exists
     const existingUser = await getUser(sanitizedEmail)
     if (existingUser) {
-      console.log('User already exists:', sanitizedEmail)
       throw new Error("User already exists")
     }
-    console.log('User does not exist, proceeding with creation')
 
-    console.log('Hashing password...')
     // Hash password with appropriate salt rounds
     const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS)
-    console.log('Password hashed successfully')
 
     // Create new user
     const newUser: User = {
@@ -226,19 +265,11 @@ export async function createUser(email: string, password: string) {
       hashedPassword,
       createdAt: new Date().toISOString()
     }
-    console.log('User object created:', { id: newUser.id, email: newUser.email })
 
-    console.log('Saving user to database...')
     await saveUser(newUser)
-    console.log('User saved successfully')
-    
     return newUser
   } catch (error) {
-    console.error('Create user error details:', {
-      error: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined,
-      name: error instanceof Error ? error.name : undefined
-    })
+    console.error('Create user error:', error)
     throw error
   }
 } 

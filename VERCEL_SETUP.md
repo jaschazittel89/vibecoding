@@ -1,7 +1,7 @@
 # Vercel Production Setup Guide
 
 ## 🚨 Current Issue
-The signup is returning "Internal server error" because Vercel KV (Redis database) is not configured in production.
+The signup is returning "Internal server error" because the database (Redis Cache or Vercel KV) is not configured in production.
 
 ## 🔒 Security-First Approach
 
@@ -37,8 +37,19 @@ Instead of disabling authentication protection entirely, we've implemented prope
 - Disable "Require Authentication" for your project
 - The API endpoints are now protected by our own security measures
 
-### 2. Set up Vercel KV Database
+### 2. Set up Database (Choose One)
 
+#### Option A: Redis Cache (Recommended)
+1. **Get your Redis connection string**
+   - From your Redis provider (Upstash, Redis Cloud, etc.)
+   - Format: `redis://username:password@host:port`
+
+2. **Add to Vercel Environment Variables**
+   ```bash
+   REDIS_URL=your-redis-connection-string
+   ```
+
+#### Option B: Vercel KV Database
 1. **Go to your Vercel Dashboard**
    - Visit [vercel.com/dashboard](https://vercel.com/dashboard)
    - Select your project
@@ -72,11 +83,15 @@ Instead of disabling authentication protection entirely, we've implemented prope
 NEXTAUTH_SECRET=your-strong-secret-key-here
 NEXTAUTH_URL=https://your-domain.vercel.app
 
-# Vercel KV Configuration
-KV_URL=your-kv-url-from-step-3
-KV_REST_API_URL=your-kv-rest-api-url-from-step-3
-KV_REST_API_TOKEN=your-kv-rest-api-token-from-step-3
-KV_REST_API_READ_ONLY_TOKEN=your-kv-read-only-token-from-step-3
+# Database Configuration (Choose One)
+# Option A: Redis Cache
+REDIS_URL=your-redis-connection-string
+
+# Option B: Vercel KV (if not using Redis)
+KV_URL=your-kv-url
+KV_REST_API_URL=your-kv-rest-api-url
+KV_REST_API_TOKEN=your-kv-rest-api-token
+KV_REST_API_READ_ONLY_TOKEN=your-kv-read-only-token
 ```
 
 2. **Generate a Strong Secret**
@@ -115,16 +130,17 @@ KV_REST_API_READ_ONLY_TOKEN=your-kv-read-only-token-from-step-3
    - Check the logs for specific error messages
 
 2. **Verify Environment Variables**
-   - Ensure all KV variables are set correctly
+   - Ensure database variables are set correctly
    - Check that `NEXTAUTH_SECRET` is not the fallback value
 
-3. **Test KV Connection**
-   - The error should now be more specific about KV connection issues
+3. **Test Database Connection**
+   - The error should now be more specific about database connection issues
 
 ### Common Issues:
 
+- **"Redis URL not configured"** → Set up Redis Cache and add `REDIS_URL`
 - **"Vercel KV not configured"** → Set up KV database and environment variables
-- **"Database connection failed"** → Check KV environment variables
+- **"Database connection failed"** → Check database environment variables
 - **"NEXTAUTH_SECRET must be set"** → Generate and set a strong secret
 - **"401 Authentication Required"** → Configure Vercel authentication exclusions
 - **"429 Too Many Requests"** → Rate limiting is working, wait and try again
@@ -150,16 +166,19 @@ KV_REST_API_READ_ONLY_TOKEN=your-kv-read-only-token-from-step-3
 ## 📊 Monitoring
 
 After setup, monitor:
-- **KV database usage** in Vercel Dashboard
+- **Database usage** in your provider dashboard
 - **Function execution times** for auth operations
 - **Error rates** in Vercel Analytics
 - **Rate limiting effectiveness**
 
 ## 💰 Cost Considerations
 
+- **Redis Cache**: Varies by provider (Upstash free tier: 10,000 requests/day)
 - **Vercel KV**: Free tier includes 100MB storage and 100 requests/day
 - **For production apps**: Consider upgrading to Pro plan for more capacity
 
 ---
 
-**Need help?** Check the Vercel KV documentation: [vercel.com/docs/storage/vercel-kv](https://vercel.com/docs/storage/vercel-kv) 
+**Need help?** 
+- Redis Cache: Check your provider's documentation
+- Vercel KV: [vercel.com/docs/storage/vercel-kv](https://vercel.com/docs/storage/vercel-kv) 
