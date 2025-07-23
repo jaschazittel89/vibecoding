@@ -10,38 +10,5 @@
     "src/app/api/auth/[...nextauth]/route.ts": {
       "maxDuration": 10
     }
-  },
-  "rewrites": [
-    {
-      "source": "/api/signup",
-      "destination": "/api/signup"
-    },
-    {
-      "source": "/api/auth/(.*)",
-      "destination": "/api/auth/$1"
-    },
-    {
-      "source": "/api/(.*)",
-      "destination": "/api/blocked"
-    }
-  ],
-  "headers": [
-    {
-      "source": "/api/signup",
-      "headers": [
-        {
-          "key": "Access-Control-Allow-Origin",
-          "value": "*"
-        },
-        {
-          "key": "Access-Control-Allow-Methods",
-          "value": "POST, OPTIONS"
-        },
-        {
-          "key": "Access-Control-Allow-Headers",
-          "value": "Content-Type, User-Agent"
-        }
-      ]
-    }
-  ]
+  }
 } 
