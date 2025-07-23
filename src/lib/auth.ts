@@ -75,7 +75,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       }
       return session
     }
-  }
+  },
+  // Add secret configuration
+  secret: process.env.NEXTAUTH_SECRET || "fallback-secret-for-development-only",
+  // Add debug mode for development
+  debug: process.env.NODE_ENV === "development",
 })
 
 // Helper function to create a new user

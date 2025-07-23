@@ -15,6 +15,7 @@ A modern, responsive web application that allows users to upload photos of their
 - **Framework**: Next.js 15 (App Router)
 - **Language**: TypeScript
 - **Styling**: Tailwind CSS
+- **Authentication**: NextAuth v5
 - **Deployment**: Vercel
 
 ## Getting Started
@@ -32,12 +33,30 @@ A modern, responsive web application that allows users to upload photos of their
    npm install
    ```
 
-3. Run the development server:
+3. **Set up environment variables** (Required for authentication):
+   
+   Create a `.env.local` file in the root directory:
+   ```bash
+   # NextAuth Configuration
+   NEXTAUTH_SECRET=your-secret-key-here-change-in-production
+   NEXTAUTH_URL=http://localhost:3000
+   ```
+   
+   **Generate a secure secret key:**
+   ```bash
+   # Option 1: Using OpenSSL
+   openssl rand -base64 32
+   
+   # Option 2: Using Node.js
+   node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+   ```
+
+4. Run the development server:
    ```bash
    npm run dev
    ```
 
-4. Open [http://localhost:3000](http://localhost:3000) in your browser
+5. Open [http://localhost:3000](http://localhost:3000) in your browser
 
 ### Available Scripts
 
@@ -46,6 +65,8 @@ A modern, responsive web application that allows users to upload photos of their
 - `npm run start` - Start production server
 - `npm run lint` - Run ESLint
 - `npm run type-check` - Run TypeScript type checking
+- `npm run test` - Run tests
+- `npm run test:ci` - Run tests in CI mode
 
 ## Deployment
 
@@ -53,7 +74,13 @@ This project is optimized for deployment on Vercel:
 
 1. Push your code to GitHub
 2. Connect your repository to Vercel
-3. Deploy automatically on every push
+3. **Configure environment variables in Vercel:**
+   - Go to your Vercel project dashboard
+   - Navigate to Settings > Environment Variables
+   - Add these variables:
+     - `NEXTAUTH_SECRET`: Your production secret key
+     - `NEXTAUTH_URL`: Your production URL (e.g., `https://your-domain.vercel.app`)
+4. Deploy automatically on every push
 
 The app will be available at your Vercel URL with the following pages:
 - `/` - Landing page
@@ -71,9 +98,29 @@ src/
 │   ├── page.tsx             # Home page
 │   ├── signup/
 │   │   └── page.tsx         # Sign up page
-│   └── login/
-│       └── page.tsx         # Login page
+│   ├── login/
+│   │   └── page.tsx         # Login page
+│   ├── home/
+│   │   └── page.tsx         # Home screen for users
+│   └── api/
+│       ├── auth/[...nextauth]/route.ts  # NextAuth endpoints
+│       └── signup/route.ts              # Signup API
+├── components/
+│   ├── Providers.tsx        # NextAuth provider
+│   └── RecipeList.tsx       # Recipe display component
+└── lib/
+    └── auth.ts              # Auth configuration
 ```
+
+## Troubleshooting
+
+### "There is a problem with the server configuration" Error
+
+This error occurs when NextAuth environment variables are not properly configured:
+
+1. **For local development**: Ensure `.env.local` file exists with `NEXTAUTH_SECRET` and `NEXTAUTH_URL`
+2. **For Vercel deployment**: Add environment variables in Vercel dashboard
+3. **Generate a new secret**: Use the commands above to generate a secure secret key
 
 ## Future Enhancements
 
