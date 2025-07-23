@@ -2,15 +2,11 @@ import NextAuth from "next-auth"
 import CredentialsProvider from "next-auth/providers/credentials"
 import bcrypt from "bcryptjs"
 
-// Extend the User type to include username
+// Extend the User type
 declare module "next-auth" {
-  interface User {
-    username?: string
-  }
   interface Session {
     user: {
       id: string
-      username: string
       email: string
     }
   }
@@ -20,7 +16,6 @@ declare module "next-auth" {
 // In production, you'd use a database like Vercel Postgres
 const users: Array<{
   id: string
-  username: string
   email: string
   hashedPassword: string
 }> = []
@@ -30,7 +25,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     CredentialsProvider({
       name: "credentials",
       credentials: {
-        username: { label: "Username", type: "text" },
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" }
       },
@@ -56,7 +50,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         return {
           id: user.id,
-          username: user.username,
           email: user.email,
         }
       }
@@ -71,14 +64,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        token.username = user.username
+        token.email = user.email
       }
       return token
     },
     async session({ session, token }) {
       if (token) {
         session.user.id = token.sub!
-        session.user.username = token.username as string
+        session.user.email = token.email as string
       }
       return session
     }
@@ -86,7 +79,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 })
 
 // Helper function to create a new user
-export async function createUser(username: string, email: string, password: string) {
+export async function createUser(email: string, password: string) {
   // Check if user already exists
   const existingUser = users.find(user => user.email === email)
   if (existingUser) {
@@ -99,7 +92,6 @@ export async function createUser(username: string, email: string, password: stri
   // Create new user
   const newUser = {
     id: Date.now().toString(),
-    username,
     email,
     hashedPassword
   }

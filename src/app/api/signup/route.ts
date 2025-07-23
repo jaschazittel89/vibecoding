@@ -3,12 +3,12 @@ import { createUser } from "../../../lib/auth"
 
 export async function POST(request: NextRequest) {
   try {
-    const { username, email, password } = await request.json()
+    const { email, password } = await request.json()
 
     // Validate input
-    if (!username || !email || !password) {
+    if (!email || !password) {
       return NextResponse.json(
-        { error: "Username, email, and password are required" },
+        { error: "Email and password are required" },
         { status: 400 }
       )
     }
@@ -31,14 +31,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Create user
-    const user = await createUser(username, email, password)
+    const user = await createUser(email, password)
 
     return NextResponse.json(
       { 
         message: "User created successfully",
         user: {
           id: user.id,
-          username: user.username,
           email: user.email
         }
       },
