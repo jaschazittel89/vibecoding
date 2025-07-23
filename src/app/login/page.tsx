@@ -2,6 +2,8 @@
 
 import React, { useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { signIn } from 'next-auth/react'
 
 export default function LoginPage() {
   const [formData, setFormData] = useState({
@@ -10,6 +12,7 @@ export default function LoginPage() {
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const router = useRouter()
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {}
@@ -36,12 +39,27 @@ export default function LoginPage() {
     }
     
     setIsSubmitting(true)
+    setErrors({})
     
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      const result = await signIn('credentials', {
+        email: formData.email,
+        password: formData.password,
+        redirect: false,
+      })
+
+      if (result?.error) {
+        setErrors({ form: 'Invalid email or password' })
+      } else {
+        // Redirect to home page on successful login
+        router.push('/')
+        router.refresh()
+      }
+    } catch (error) {
+      setErrors({ form: 'An error occurred. Please try again.' })
+    } finally {
       setIsSubmitting(false)
-      alert('Login functionality will be implemented with backend integration')
-    }, 1000)
+    }
   }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -102,6 +120,12 @@ export default function LoginPage() {
             />
             {errors.password && <p className="mt-1 text-sm text-red-600">{errors.password}</p>}
           </div>
+
+          {errors.form && (
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
+              <p className="text-sm text-red-600 dark:text-red-400">{errors.form}</p>
+            </div>
+          )}
 
           <button
             type="submit"

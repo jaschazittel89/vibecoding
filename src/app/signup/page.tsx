@@ -2,22 +2,24 @@
 
 import React, { useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 
 export default function SignupPage() {
   const [formData, setFormData] = useState({
-    name: '',
+    username: '',
     email: '',
     password: '',
     confirmPassword: ''
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const router = useRouter()
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {}
     
-    if (!formData.name.trim()) {
-      newErrors.name = 'Name is required'
+    if (!formData.username.trim()) {
+      newErrors.username = 'Username is required'
     }
     
     if (!formData.email.trim()) {
@@ -51,11 +53,32 @@ export default function SignupPage() {
     
     setIsSubmitting(true)
     
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      const response = await fetch('/api/signup', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          username: formData.username,
+          email: formData.email,
+          password: formData.password,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        // Redirect to login page on success
+        router.push('/login?message=Account created successfully! Please sign in.')
+      } else {
+        setErrors({ form: data.error || 'Signup failed' })
+      }
+    } catch (error) {
+      setErrors({ form: 'Network error. Please try again.' })
+    } finally {
       setIsSubmitting(false)
-      alert('Signup functionality will be implemented with backend integration')
-    }, 1000)
+    }
   }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -82,21 +105,21 @@ export default function SignupPage() {
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
-            <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Full Name
+            <label htmlFor="username" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Username
             </label>
             <input
               type="text"
-              id="name"
-              name="name"
-              value={formData.name}
+              id="username"
+              name="username"
+              value={formData.username}
               onChange={handleChange}
               className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                errors.name ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                errors.username ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
               } bg-white dark:bg-gray-700 text-gray-900 dark:text-white`}
-              placeholder="Enter your full name"
+              placeholder="Enter your username"
             />
-            {errors.name && <p className="mt-1 text-sm text-red-600">{errors.name}</p>}
+            {errors.username && <p className="mt-1 text-sm text-red-600">{errors.username}</p>}
           </div>
 
           <div>
@@ -152,6 +175,12 @@ export default function SignupPage() {
             />
             {errors.confirmPassword && <p className="mt-1 text-sm text-red-600">{errors.confirmPassword}</p>}
           </div>
+
+          {errors.form && (
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
+              <p className="text-sm text-red-600 dark:text-red-400">{errors.form}</p>
+            </div>
+          )}
 
           <button
             type="submit"
