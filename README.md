@@ -59,6 +59,7 @@ The app will be available at your Vercel URL with the following pages:
 - `/` - Landing page
 - `/signup` - Sign up form
 - `/login` - Login form
+- `/home` - Recipe generator and past recipes
 
 ## Project Structure
 
