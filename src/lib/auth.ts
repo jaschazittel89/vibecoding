@@ -1,7 +1,6 @@
 import NextAuth from "next-auth"
 import CredentialsProvider from "next-auth/providers/credentials"
 import bcrypt from "bcryptjs"
-import { kv } from '@vercel/kv'
 
 // Extend the User type
 declare module "next-auth" {
@@ -46,13 +45,37 @@ const validatePassword = (password: string): boolean => {
          /[A-Z]/.test(password)
 }
 
+// KV client with error handling
+let kvClient: any = null
+
+const getKVClient = async () => {
+  if (kvClient) return kvClient
+  
+  try {
+    if (process.env.KV_REST_API_URL) {
+      const { kv } = await import('@vercel/kv')
+      kvClient = kv
+      return kv
+    } else {
+      throw new Error("Vercel KV not configured")
+    }
+  } catch (error) {
+    console.error('KV connection error:', error)
+    throw new Error("Database connection failed. Please check your Vercel KV configuration.")
+  }
+}
+
 // Load user from KV storage
 const getUser = async (email: string): Promise<User | null> => {
   try {
+    const kv = await getKVClient()
     const userData = await kv.get(`user:${email}`)
     return userData as User | null
   } catch (error) {
     console.error('Error loading user:', error)
+    if (error instanceof Error && error.message.includes("Database connection failed")) {
+      throw error
+    }
     return null
   }
 }
@@ -60,9 +83,13 @@ const getUser = async (email: string): Promise<User | null> => {
 // Save user to KV storage
 const saveUser = async (user: User): Promise<void> => {
   try {
+    const kv = await getKVClient()
     await kv.set(`user:${user.email}`, user)
   } catch (error) {
     console.error('Error saving user:', error)
+    if (error instanceof Error && error.message.includes("Database connection failed")) {
+      throw error
+    }
     throw new Error('Failed to save user')
   }
 }
@@ -93,32 +120,37 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           return null
         }
 
-        // Sanitize email
-        const email = sanitizeEmail(credentials.email)
-        
-        // Find user by email
-        const user = await getUser(email)
-        
-        if (!user) {
-          // Use consistent timing to prevent timing attacks
-          await bcrypt.compare("dummy", "$2a$10$dummy")
+        try {
+          // Sanitize email
+          const email = sanitizeEmail(credentials.email)
+          
+          // Find user by email
+          const user = await getUser(email)
+          
+          if (!user) {
+            // Use consistent timing to prevent timing attacks
+            await bcrypt.compare("dummy", "$2a$10$dummy")
+            return null
+          }
+
+          // Verify password
+          const password = String(credentials.password)
+          const isPasswordValid = await bcrypt.compare(password, user.hashedPassword)
+          
+          if (!isPasswordValid) {
+            return null
+          }
+
+          // Update last login
+          await updateLastLogin(email)
+
+          return {
+            id: user.id,
+            email: user.email,
+          }
+        } catch (error) {
+          console.error('Authorization error:', error)
           return null
-        }
-
-        // Verify password
-        const password = String(credentials.password)
-        const isPasswordValid = await bcrypt.compare(password, user.hashedPassword)
-        
-        if (!isPasswordValid) {
-          return null
-        }
-
-        // Update last login
-        await updateLastLogin(email)
-
-        return {
-          id: user.id,
-          email: user.email,
         }
       }
     })
@@ -165,23 +197,28 @@ export async function createUser(email: string, password: string) {
     throw new Error("Password must be at least 8 characters and contain uppercase, lowercase, and number")
   }
 
-  // Check if user already exists
-  const existingUser = await getUser(sanitizedEmail)
-  if (existingUser) {
-    throw new Error("User already exists")
+  try {
+    // Check if user already exists
+    const existingUser = await getUser(sanitizedEmail)
+    if (existingUser) {
+      throw new Error("User already exists")
+    }
+
+    // Hash password with appropriate salt rounds
+    const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS)
+
+    // Create new user
+    const newUser: User = {
+      id: Date.now().toString(),
+      email: sanitizedEmail,
+      hashedPassword,
+      createdAt: new Date().toISOString()
+    }
+
+    await saveUser(newUser)
+    return newUser
+  } catch (error) {
+    console.error('Create user error:', error)
+    throw error
   }
-
-  // Hash password with appropriate salt rounds
-  const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS)
-
-  // Create new user
-  const newUser: User = {
-    id: Date.now().toString(),
-    email: sanitizedEmail,
-    hashedPassword,
-    createdAt: new Date().toISOString()
-  }
-
-  await saveUser(newUser)
-  return newUser
 } 

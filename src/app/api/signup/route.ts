@@ -1,28 +1,58 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createUser } from "../../../lib/auth"
-import { kv } from '@vercel/kv'
 
 // Rate limiting configuration
 const RATE_LIMIT_WINDOW = 60 * 1000 // 1 minute
 const MAX_REQUESTS_PER_WINDOW = 5 // 5 signup attempts per minute
 
-// Rate limiting function
+// In-memory rate limiting for local development
+const rateLimitStore = new Map<string, number[]>()
+
+// Rate limiting function with fallback
 const checkRateLimit = async (ip: string): Promise<boolean> => {
   const key = `rate_limit:signup:${ip}`
   const now = Date.now()
   
   try {
-    const requests = await kv.get(key) as number[] || []
-    const validRequests = requests.filter(time => now - time < RATE_LIMIT_WINDOW)
-    
-    if (validRequests.length >= MAX_REQUESTS_PER_WINDOW) {
-      return false // Rate limited
+    // Try to use Vercel KV if available (production)
+    if (process.env.KV_REST_API_URL) {
+      const { kv } = await import('@vercel/kv')
+      const requests = await kv.get(key) as number[] || []
+      const validRequests = requests.filter(time => now - time < RATE_LIMIT_WINDOW)
+      
+      if (validRequests.length >= MAX_REQUESTS_PER_WINDOW) {
+        return false // Rate limited
+      }
+      
+      validRequests.push(now)
+      await kv.set(key, validRequests, { ex: 60 }) // Expire in 60 seconds
+      
+      return true
+    } else {
+      // Fallback to in-memory rate limiting for local development
+      const requests = rateLimitStore.get(ip) || []
+      const validRequests = requests.filter(time => now - time < RATE_LIMIT_WINDOW)
+      
+      if (validRequests.length >= MAX_REQUESTS_PER_WINDOW) {
+        return false // Rate limited
+      }
+      
+      validRequests.push(now)
+      rateLimitStore.set(ip, validRequests)
+      
+      // Clean up old entries
+      setTimeout(() => {
+        const currentRequests = rateLimitStore.get(ip) || []
+        const updatedRequests = currentRequests.filter(time => Date.now() - time < RATE_LIMIT_WINDOW)
+        if (updatedRequests.length === 0) {
+          rateLimitStore.delete(ip)
+        } else {
+          rateLimitStore.set(ip, updatedRequests)
+        }
+      }, RATE_LIMIT_WINDOW)
+      
+      return true
     }
-    
-    validRequests.push(now)
-    await kv.set(key, validRequests, { ex: 60 }) // Expire in 60 seconds
-    
-    return true
   } catch (error) {
     console.error('Rate limiting error:', error)
     return true // Allow request if rate limiting fails
@@ -116,6 +146,8 @@ export async function POST(request: NextRequest) {
       { status: 201 }
     )
   } catch (error) {
+    console.error("Signup error:", error)
+    
     if (error instanceof Error && error.message === "User already exists") {
       return NextResponse.json(
         { error: "User with this email already exists" },
@@ -130,7 +162,17 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    console.error("Signup error:", error)
+    // Return more specific error information in development
+    if (process.env.NODE_ENV === 'development') {
+      return NextResponse.json(
+        { 
+          error: "Internal server error",
+          details: error instanceof Error ? error.message : 'Unknown error'
+        },
+        { status: 500 }
+      )
+    }
+
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
