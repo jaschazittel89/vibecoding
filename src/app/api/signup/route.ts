@@ -3,7 +3,9 @@ import { createUser } from "../../../lib/auth"
 
 // Rate limiting configuration
 const RATE_LIMIT_WINDOW = 60 * 1000 // 1 minute
-const MAX_REQUESTS_PER_WINDOW = 5 // 5 signup attempts per minute
+const MAX_REQUESTS_PER_WINDOW = 3 // 3 signup attempts per minute (more restrictive)
+const MAX_EMAIL_LENGTH = 254
+const MAX_PASSWORD_LENGTH = 128
 
 // In-memory rate limiting for local development
 const rateLimitStore = new Map<string, number[]>()
@@ -73,10 +75,57 @@ const getClientIP = (request: NextRequest): string => {
          'unknown'
 }
 
+// Validate request headers
+const validateRequest = (request: NextRequest): boolean => {
+  const contentType = request.headers.get('content-type')
+  const userAgent = request.headers.get('user-agent')
+  
+  // Require proper content type
+  if (!contentType || !contentType.includes('application/json')) {
+    return false
+  }
+  
+  // Require user agent (basic bot protection)
+  if (!userAgent || userAgent.length < 10) {
+    return false
+  }
+  
+  return true
+}
+
+// Handle CORS preflight
+export async function OPTIONS(request: NextRequest) {
+  return new NextResponse(null, {
+    status: 200,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      'Access-Control-Max-Age': '86400',
+    },
+  })
+}
+
 export async function POST(request: NextRequest) {
   console.log('Signup API called')
   
+  // Add CORS headers
+  const corsHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+  }
+  
   try {
+    // Validate request headers
+    if (!validateRequest(request)) {
+      console.log('Invalid request headers')
+      return NextResponse.json(
+        { error: "Invalid request" },
+        { status: 400, headers: corsHeaders }
+      )
+    }
+
     // Rate limiting check
     const clientIP = getClientIP(request)
     console.log('Client IP:', clientIP)
@@ -87,7 +136,7 @@ export async function POST(request: NextRequest) {
       console.log('Rate limited for IP:', clientIP)
       return NextResponse.json(
         { error: "Too many signup attempts. Please try again later." },
-        { status: 429 }
+        { status: 429, headers: corsHeaders }
       )
     }
 
@@ -101,7 +150,24 @@ export async function POST(request: NextRequest) {
       console.log('Missing email or password')
       return NextResponse.json(
         { error: "Email and password are required" },
-        { status: 400 }
+        { status: 400, headers: corsHeaders }
+      )
+    }
+
+    // Validate input lengths
+    if (typeof email !== 'string' || email.length > MAX_EMAIL_LENGTH) {
+      console.log('Invalid email length')
+      return NextResponse.json(
+        { error: "Invalid email format" },
+        { status: 400, headers: corsHeaders }
+      )
+    }
+
+    if (typeof password !== 'string' || password.length > MAX_PASSWORD_LENGTH) {
+      console.log('Invalid password length')
+      return NextResponse.json(
+        { error: "Invalid password format" },
+        { status: 400, headers: corsHeaders }
       )
     }
 
@@ -111,7 +177,7 @@ export async function POST(request: NextRequest) {
       console.log('Invalid email format:', email)
       return NextResponse.json(
         { error: "Please enter a valid email address" },
-        { status: 400 }
+        { status: 400, headers: corsHeaders }
       )
     }
 
@@ -120,7 +186,7 @@ export async function POST(request: NextRequest) {
       console.log('Password too short')
       return NextResponse.json(
         { error: "Password must be at least 8 characters long" },
-        { status: 400 }
+        { status: 400, headers: corsHeaders }
       )
     }
     
@@ -128,7 +194,7 @@ export async function POST(request: NextRequest) {
       console.log('Password missing number')
       return NextResponse.json(
         { error: "Password must contain at least one number" },
-        { status: 400 }
+        { status: 400, headers: corsHeaders }
       )
     }
     
@@ -136,7 +202,7 @@ export async function POST(request: NextRequest) {
       console.log('Password missing lowercase')
       return NextResponse.json(
         { error: "Password must contain at least one lowercase letter" },
-        { status: 400 }
+        { status: 400, headers: corsHeaders }
       )
     }
     
@@ -144,7 +210,7 @@ export async function POST(request: NextRequest) {
       console.log('Password missing uppercase')
       return NextResponse.json(
         { error: "Password must contain at least one uppercase letter" },
-        { status: 400 }
+        { status: 400, headers: corsHeaders }
       )
     }
 
@@ -163,7 +229,7 @@ export async function POST(request: NextRequest) {
           email: user.email
         }
       },
-      { status: 201 }
+      { status: 201, headers: corsHeaders }
     )
   } catch (error) {
     console.error("Signup error details:", {
@@ -175,14 +241,14 @@ export async function POST(request: NextRequest) {
     if (error instanceof Error && error.message === "User already exists") {
       return NextResponse.json(
         { error: "User with this email already exists" },
-        { status: 409 }
+        { status: 409, headers: corsHeaders }
       )
     }
     
     if (error instanceof Error && error.message.includes("Password must be")) {
       return NextResponse.json(
         { error: error.message },
-        { status: 400 }
+        { status: 400, headers: corsHeaders }
       )
     }
 
@@ -194,13 +260,13 @@ export async function POST(request: NextRequest) {
           details: error instanceof Error ? error.message : 'Unknown error',
           stack: error instanceof Error ? error.stack : undefined
         },
-        { status: 500 }
+        { status: 500, headers: corsHeaders }
       )
     }
 
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500, headers: corsHeaders }
     )
   }
 } 

@@ -3,9 +3,41 @@
 ## 🚨 Current Issue
 The signup is returning "Internal server error" because Vercel KV (Redis database) is not configured in production.
 
+## 🔒 Security-First Approach
+
+Instead of disabling authentication protection entirely, we've implemented proper security measures:
+
+### ✅ Security Measures Implemented:
+- **Rate limiting**: 3 signup attempts per minute per IP
+- **Input validation**: Email format, password strength, length limits
+- **Request validation**: Content-Type, User-Agent checks
+- **CORS handling**: Proper cross-origin request handling
+- **Error handling**: No sensitive information leakage
+
 ## 🔧 Quick Fix Steps
 
-### 1. Set up Vercel KV Database
+### 1. Configure Vercel Authentication (Optional)
+
+**If you want to keep Vercel authentication protection:**
+
+1. **Go to your Vercel Dashboard**
+   - Visit [vercel.com/dashboard](https://vercel.com/dashboard)
+   - Select your project
+
+2. **Configure Authentication Exclusions**
+   - Go to **"Settings"** tab
+   - Click on **"Security"** in the left sidebar
+   - Find **"Authentication"** section
+   - Configure to exclude these paths:
+     - `/api/signup`
+     - `/api/auth/*`
+   - OR set custom rules to allow these endpoints
+
+**If you prefer to disable Vercel authentication:**
+- Disable "Require Authentication" for your project
+- The API endpoints are now protected by our own security measures
+
+### 2. Set up Vercel KV Database
 
 1. **Go to your Vercel Dashboard**
    - Visit [vercel.com/dashboard](https://vercel.com/dashboard)
@@ -28,7 +60,7 @@ The signup is returning "Internal server error" because Vercel KV (Redis databas
      - `KV_REST_API_TOKEN`
      - `KV_REST_API_READ_ONLY_TOKEN`
 
-### 2. Configure Environment Variables
+### 3. Configure Environment Variables
 
 1. **In Vercel Dashboard**
    - Go to your project settings
@@ -56,7 +88,7 @@ KV_REST_API_READ_ONLY_TOKEN=your-kv-read-only-token-from-step-3
    node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
    ```
 
-### 3. Redeploy Your Application
+### 4. Redeploy Your Application
 
 1. **Trigger a new deployment**
    - Push any change to your GitHub repository, OR
@@ -94,6 +126,26 @@ KV_REST_API_READ_ONLY_TOKEN=your-kv-read-only-token-from-step-3
 - **"Vercel KV not configured"** → Set up KV database and environment variables
 - **"Database connection failed"** → Check KV environment variables
 - **"NEXTAUTH_SECRET must be set"** → Generate and set a strong secret
+- **"401 Authentication Required"** → Configure Vercel authentication exclusions
+- **"429 Too Many Requests"** → Rate limiting is working, wait and try again
+
+## 🛡️ Security Features
+
+### Rate Limiting
+- **3 signup attempts per minute** per IP address
+- **Automatic cleanup** of old rate limit data
+- **Graceful degradation** if rate limiting fails
+
+### Input Validation
+- **Email format validation** with proper regex
+- **Password strength requirements** (8+ chars, uppercase, lowercase, number)
+- **Input length limits** (email: 254 chars, password: 128 chars)
+- **Type checking** for all inputs
+
+### Request Validation
+- **Content-Type validation** (must be application/json)
+- **User-Agent validation** (basic bot protection)
+- **CORS handling** for cross-origin requests
 
 ## 📊 Monitoring
 
@@ -101,6 +153,7 @@ After setup, monitor:
 - **KV database usage** in Vercel Dashboard
 - **Function execution times** for auth operations
 - **Error rates** in Vercel Analytics
+- **Rate limiting effectiveness**
 
 ## 💰 Cost Considerations
 
