@@ -1,6 +1,7 @@
 import NextAuth from "next-auth"
 import CredentialsProvider from "next-auth/providers/credentials"
 import bcrypt from "bcryptjs"
+import { kv } from '@vercel/kv'
 
 // Extend the User type
 declare module "next-auth" {
@@ -12,13 +13,33 @@ declare module "next-auth" {
   }
 }
 
-// Simple in-memory storage for demo purposes
-// In production, you'd use a database like Vercel Postgres
-const users: Array<{
+// User type definition
+type User = {
   id: string
   email: string
   hashedPassword: string
-}> = []
+}
+
+// Load user from KV storage
+const getUser = async (email: string): Promise<User | null> => {
+  try {
+    const userData = await kv.get(`user:${email}`)
+    return userData as User | null
+  } catch (error) {
+    console.error('Error loading user:', error)
+    return null
+  }
+}
+
+// Save user to KV storage
+const saveUser = async (user: User): Promise<void> => {
+  try {
+    await kv.set(`user:${user.email}`, user)
+  } catch (error) {
+    console.error('Error saving user:', error)
+    throw new Error('Failed to save user')
+  }
+}
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
@@ -28,13 +49,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" }
       },
-      async authorize(credentials) {
+      async authorize(credentials: any) {
         if (!credentials?.email || !credentials?.password) {
           return null
         }
 
         // Find user by email
-        const user = users.find(user => user.email === credentials.email)
+        const user = await getUser(String(credentials.email))
         
         if (!user) {
           return null
@@ -85,7 +106,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 // Helper function to create a new user
 export async function createUser(email: string, password: string) {
   // Check if user already exists
-  const existingUser = users.find(user => user.email === email)
+  const existingUser = await getUser(email)
   if (existingUser) {
     throw new Error("User already exists")
   }
@@ -94,12 +115,12 @@ export async function createUser(email: string, password: string) {
   const hashedPassword = await bcrypt.hash(password, 10)
 
   // Create new user
-  const newUser = {
+  const newUser: User = {
     id: Date.now().toString(),
     email,
     hashedPassword
   }
 
-  users.push(newUser)
+  await saveUser(newUser)
   return newUser
 } 
