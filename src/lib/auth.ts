@@ -18,6 +18,32 @@ type User = {
   id: string
   email: string
   hashedPassword: string
+  createdAt: string
+  lastLogin?: string
+}
+
+// Security configuration
+const SALT_ROUNDS = process.env.NODE_ENV === 'production' ? 12 : 10
+const SESSION_MAX_AGE = 30 * 24 * 60 * 60 // 30 days
+
+// Validate environment variables
+const validateEnv = () => {
+  if (!process.env.NEXTAUTH_SECRET || process.env.NEXTAUTH_SECRET === "fallback-secret-for-development-only") {
+    throw new Error("NEXTAUTH_SECRET must be set in production")
+  }
+}
+
+// Sanitize email input
+const sanitizeEmail = (email: string): string => {
+  return email.toLowerCase().trim()
+}
+
+// Validate password strength
+const validatePassword = (password: string): boolean => {
+  return password.length >= 8 && 
+         /\d/.test(password) && 
+         /[a-z]/.test(password) && 
+         /[A-Z]/.test(password)
 }
 
 // Load user from KV storage
@@ -41,6 +67,19 @@ const saveUser = async (user: User): Promise<void> => {
   }
 }
 
+// Update user last login
+const updateLastLogin = async (email: string): Promise<void> => {
+  try {
+    const user = await getUser(email)
+    if (user) {
+      user.lastLogin = new Date().toISOString()
+      await saveUser(user)
+    }
+  } catch (error) {
+    console.error('Error updating last login:', error)
+  }
+}
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
     CredentialsProvider({
@@ -54,20 +93,28 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           return null
         }
 
+        // Sanitize email
+        const email = sanitizeEmail(credentials.email)
+        
         // Find user by email
-        const user = await getUser(String(credentials.email))
+        const user = await getUser(email)
         
         if (!user) {
+          // Use consistent timing to prevent timing attacks
+          await bcrypt.compare("dummy", "$2a$10$dummy")
           return null
         }
 
-        // Verify password - ensure both are strings
+        // Verify password
         const password = String(credentials.password)
         const isPasswordValid = await bcrypt.compare(password, user.hashedPassword)
         
         if (!isPasswordValid) {
           return null
         }
+
+        // Update last login
+        await updateLastLogin(email)
 
         return {
           id: user.id,
@@ -78,6 +125,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   ],
   session: {
     strategy: "jwt",
+    maxAge: SESSION_MAX_AGE,
   },
   pages: {
     signIn: "/login",
@@ -97,28 +145,41 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       return session
     }
   },
-  // Add secret configuration
-  secret: process.env.NEXTAUTH_SECRET || "fallback-secret-for-development-only",
-  // Add debug mode for development
+  // Security configuration
+  secret: process.env.NEXTAUTH_SECRET,
+  // Add debug mode for development only
   debug: process.env.NODE_ENV === "development",
 })
 
 // Helper function to create a new user
 export async function createUser(email: string, password: string) {
+  // Validate environment in production
+  if (process.env.NODE_ENV === 'production') {
+    validateEnv()
+  }
+
+  // Sanitize and validate input
+  const sanitizedEmail = sanitizeEmail(email)
+  
+  if (!validatePassword(password)) {
+    throw new Error("Password must be at least 8 characters and contain uppercase, lowercase, and number")
+  }
+
   // Check if user already exists
-  const existingUser = await getUser(email)
+  const existingUser = await getUser(sanitizedEmail)
   if (existingUser) {
     throw new Error("User already exists")
   }
 
-  // Hash password
-  const hashedPassword = await bcrypt.hash(password, 10)
+  // Hash password with appropriate salt rounds
+  const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS)
 
   // Create new user
   const newUser: User = {
     id: Date.now().toString(),
-    email,
-    hashedPassword
+    email: sanitizedEmail,
+    hashedPassword,
+    createdAt: new Date().toISOString()
   }
 
   await saveUser(newUser)

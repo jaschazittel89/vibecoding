@@ -29,6 +29,10 @@ export default function SignupPage() {
       newErrors.password = 'Password must be at least 8 characters'
     } else if (!/\d/.test(formData.password)) {
       newErrors.password = 'Password must contain at least one number'
+    } else if (!/[a-z]/.test(formData.password)) {
+      newErrors.password = 'Password must contain at least one lowercase letter'
+    } else if (!/[A-Z]/.test(formData.password)) {
+      newErrors.password = 'Password must contain at least one uppercase letter'
     }
     
     if (formData.password !== formData.confirmPassword) {
@@ -132,6 +136,9 @@ export default function SignupPage() {
               placeholder="Create a password"
             />
             {errors.password && <p className="mt-1 text-sm text-red-600">{errors.password}</p>}
+            <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+              Password must be at least 8 characters with uppercase, lowercase, and number
+            </div>
           </div>
 
           <div>
