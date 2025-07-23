@@ -51,8 +51,8 @@ export default function LoginPage() {
       if (result?.error) {
         setErrors({ form: 'Invalid email or password' })
       } else {
-        // Redirect to home page on successful login
-        router.push('/')
+        // Redirect to home screen on successful login
+        router.push('/home')
         router.refresh()
       }
     } catch (error) {
@@ -147,4 +147,4 @@ export default function LoginPage() {
       </div>
     </div>
   )
-} 
+}
